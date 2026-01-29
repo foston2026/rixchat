@@ -1,0 +1,51 @@
+RixChat - Production Ready Web Messenger
+
+A high-performance, real-time chat application inspired by Telegram.
+
+Features
+
+Real Auth: JWT with expiry, Bcrypt hashing.
+
+Realtime: WebSockets for messaging, typing, and presence.
+
+PWA: Installable on iOS/Android, works offline.
+
+Media: Secure image uploads.
+
+UX: Infinite-style scroll, unread counters, mobile-first design.
+
+Prerequisites
+
+Python 3.9+
+
+Pip
+
+Installation & Run
+
+Install Dependencies:
+
+pip install fastapi uvicorn sqlalchemy passlib[bcrypt] pyjwt python-multipart pydantic[email]
+
+
+Setup Email (Optional for Verification):
+In main.py, update SMTP_USER and SMTP_PASS with your credentials to enable real email sending.
+
+Start Backend:
+
+python main.py
+
+
+Serve Frontend:
+Since the frontend is index.html, and the backend handles routing/static files, you can simply open the app at http://localhost:8000 (FastAPI handles CORS automatically).
+
+Testing Guide
+
+Register two users (e.g., user1 and user2) via the UI.
+
+Log in as user1.
+
+Click the + icon, type user2, and start a chat.
+
+Open another tab/browser, log in as user2.
+
+Observe real-time message delivery and typing indicators.

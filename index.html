@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RixChat | Production Messaging</title>
+    <link rel="manifest" href="/manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .chat-bg { background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-repeat: repeat; opacity: 0.08; }
+        .msg-bubble-in { border-radius: 12px 12px 12px 2px; }
+        .msg-bubble-out { border-radius: 12px 12px 2px 12px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        #app { height: 100vh; overflow: hidden; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 overflow-hidden">
+
+<div id="app" class="flex flex-col">
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="flex-1 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <div class="flex flex-col items-center mb-6">
+                <div class="bg-blue-500 p-3 rounded-full mb-2">
+                    <i data-lucide="send" class="text-white w-8 h-8"></i>
+                </div>
+                <h1 class="text-2xl font-bold">RixChat</h1>
+            </div>
+
+            <div id="login-form">
+                <div class="space-y-4">
+                    <input type="email" id="login-email" placeholder="Email Address" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none">
+                    <input type="password" id="login-pass" placeholder="Password" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none">
+                    <button onclick="handleLogin()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition">Log In</button>
+                    <p class="text-center text-sm">Don't have an account? <a href="javascript:toggleAuth()" class="text-blue-500 font-medium">Register</a></p>
+                </div>
+            </div>
+
+            <div id="register-form" class="hidden">
+                <div class="space-y-4">
+                    <input type="text" id="reg-user" placeholder="Username" class="w-full p-3 border rounded-lg">
+                    <input type="email" id="reg-email" placeholder="Email" class="w-full p-3 border rounded-lg">
+                    <input type="password" id="reg-pass" placeholder="Password" class="w-full p-3 border rounded-lg">
+                    <button onclick="handleRegister()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition">Create Account</button>
+                    <p class="text-center text-sm">Back to <a href="javascript:toggleAuth()" class="text-blue-500 font-medium">Login</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Screen -->
+    <div id="chat-screen" class="hidden flex-1 flex flex-row overflow-hidden h-full">
+        <!-- Sidebar -->
+        <div class="w-full md:w-80 border-r bg-white flex flex-col h-full z-10" id="sidebar">
+            <div class="p-4 border-b flex items-center justify-between bg-blue-500 text-white">
+                <div class="flex items-center gap-3">
+                    <img id="my-avatar" class="w-10 h-10 rounded-full border-2 border-white" src="" alt="Me">
+                    <span id="my-name" class="font-bold"></span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openNewChat()" class="hover:bg-blue-400 p-2 rounded-full"><i data-lucide="plus"></i></button>
+                    <button onclick="handleLogout()" class="hover:bg-blue-400 p-2 rounded-full"><i data-lucide="log-out"></i></button>
+                </div>
+            </div>
+            <div class="p-3">
+                <input type="text" placeholder="Search chats..." class="w-full bg-slate-100 p-2 rounded-lg text-sm outline-none">
+            </div>
+            <div id="chat-list" class="flex-1 overflow-y-auto custom-scrollbar">
+                <!-- Chat items -->
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="flex-1 flex flex-col bg-[#e5ddd5] relative h-full" id="chat-view">
+            <div class="chat-bg absolute inset-0"></div>
+            
+            <!-- Default Welcome -->
+            <div id="no-chat" class="relative z-10 flex-1 flex flex-center flex-col items-center justify-center text-slate-500">
+                <div class="bg-white/50 p-6 rounded-full mb-4"><i data-lucide="message-square" class="w-12 h-12"></i></div>
+                <p>Select a chat to start messaging</p>
+            </div>
+
+            <!-- Active Chat -->
+            <div id="active-chat" class="hidden relative z-10 flex-1 flex flex-col h-full">
+                <!-- Header -->
+                <div class="bg-white p-3 border-b flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <button onclick="closeChatMobile()" class="md:hidden"><i data-lucide="chevron-left"></i></button>
+                        <img id="chat-header-avatar" class="w-10 h-10 rounded-full" src="" alt="">
+                        <div>
+                            <h2 id="chat-header-name" class="font-bold text-sm leading-tight"></h2>
+                            <p id="chat-header-status" class="text-xs text-blue-500"></p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 text-slate-400">
+                        <i data-lucide="search" class="w-5 h-5 cursor-pointer"></i>
+                        <i data-lucide="more-vertical" class="w-5 h-5 cursor-pointer"></i>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div id="message-container" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 custom-scrollbar">
+                    <!-- Messages will appear here -->
+                </div>
+
+                <!-- Input Area -->
+                <div class="p-3 bg-white flex items-center gap-3">
+                    <button id="btn-upload" class="text-slate-400 hover:text-blue-500"><i data-lucide="paperclip"></i></button>
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                    <input type="text" id="msg-input" placeholder="Write a message..." class="flex-1 bg-slate-100 p-3 rounded-xl outline-none text-sm">
+                    <button id="send-btn" class="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let token = localStorage.getItem('rix_token');
+    let currentUser = JSON.parse(localStorage.getItem('rix_user') || '{}');
+    let currentChatId = null;
+    let ws = null;
+    let typingTimer = null;
+
+    const API = ""; // Root local
+    
+    // --- APP CORE ---
+    function init() {
+        lucide.createIcons();
+        if (token) {
+            showChat();
+            connectWS();
+            loadChatList();
+        } else {
+            showAuth();
+        }
+    }
+
+    function toggleAuth() {
+        document.getElementById('login-form').classList.toggle('hidden');
+        document.getElementById('register-form').classList.toggle('hidden');
+    }
+
+    function showAuth() {
+        document.getElementById('auth-screen').classList.remove('hidden');
+        document.getElementById('chat-screen').classList.add('hidden');
+    }
+
+    function showChat() {
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('chat-screen').classList.remove('hidden');
+        document.getElementById('my-avatar').src = currentUser.avatar || '/uploads/default.png';
+        document.getElementById('my-name').innerText = currentUser.username;
+    }
+
+    // --- API WRAPPERS ---
+    async function apiRequest(endpoint, method = 'GET', body = null, isForm = false) {
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        let config = { method, headers };
+        if (body) {
+            if (isForm) config.body = body;
+            else {
+                headers['Content-Type'] = 'application/json';
+                config.body = JSON.stringify(body);
+            }
+        }
+
+        const res = await fetch(API + endpoint, config);
+        if (res.status === 401) handleLogout();
+        return res.json();
+    }
+
+    // --- AUTH LOGIC ---
+    async function handleLogin() {
+        const email = document.getElementById('login-email').value;
+        const pass = document.getElementById('login-pass').value;
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', pass);
+
+        const data = await apiRequest('/login', 'POST', formData, true);
+        if (data.access_token) {
+            token = data.access_token;
+            currentUser = data.user;
+            localStorage.setItem('rix_token', token);
+            localStorage.setItem('rix_user', JSON.stringify(currentUser));
+            init();
+        } else {
+            alert(data.detail || "Login failed");
+        }
+    }
+
+    async function handleRegister() {
+        const username = document.getElementById('reg-user').value;
+        const email = document.getElementById('reg-email').value;
+        const password = document.getElementById('reg-pass').value;
+        
+        const formData = new FormData();
+        formData.append('username', username);
+        formData.append('email', email);
+        formData.append('password', password);
+
+        const data = await apiRequest('/register', 'POST', formData, true);
+        if (data.msg) {
+            alert(data.msg);
+            toggleAuth();
+        } else {
+            alert(data.detail || "Registration failed");
+        }
+    }
+
+    function handleLogout() {
+        localStorage.clear();
+        location.reload();
+    }
+
+    // --- REALTIME ---
+    function connectWS() {
+        ws = new WebSocket(`ws://${location.host}/ws/${token}`);
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'new_message') {
+                if (data.chat_id === currentChatId) {
+                    renderMessage(data);
+                    scrollToBottom();
+                }
+                loadChatList();
+            } else if (data.type === 'typing' && data.chat_id === currentChatId && data.user_id !== currentUser.id) {
+                showTyping(data.username);
+            }
+        };
+        ws.onclose = () => setTimeout(connectWS, 3000);
+    }
+
+    // --- UI LOGIC ---
+    async function loadChatList() {
+        const chats = await apiRequest('/chats');
+        const container = document.getElementById('chat-list');
+        container.innerHTML = '';
+        chats.forEach(chat => {
+            const timeStr = new Date(chat.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const unread = chat.unread_count > 0 ? `<span class="bg-blue-500 text-white text-[10px] px-1.5 rounded-full">${chat.unread_count}</span>` : '';
+            
+            const item = document.createElement('div');
+            item.className = `p-4 flex gap-3 hover:bg-slate-50 cursor-pointer border-b transition ${currentChatId === chat.id ? 'bg-blue-50' : ''}`;
+            item.innerHTML = `
+                <img src="${chat.avatar}" class="w-12 h-12 rounded-full flex-shrink-0">
+                <div class="flex-1 overflow-hidden">
+                    <div class="flex justify-between">
+                        <span class="font-bold text-sm truncate">${chat.name}</span>
+                        <span class="text-[10px] text-slate-400">${timeStr}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <p class="text-xs text-slate-500 truncate">${chat.last_message || 'No messages yet'}</p>
+                        ${unread}
+                    </div>
+                </div>
+            `;
+            item.onclick = () => selectChat(chat);
+            container.appendChild(item);
+        });
+    }
+
+    async function selectChat(chat) {
+        currentChatId = chat.id;
+        document.getElementById('no-chat').classList.add('hidden');
+        document.getElementById('active-chat').classList.remove('hidden');
+        document.getElementById('chat-header-name').innerText = chat.name;
+        document.getElementById('chat-header-avatar').src = chat.avatar;
+        document.getElementById('chat-header-status').innerText = 'online';
+
+        if (window.innerWidth < 768) {
+            document.getElementById('sidebar').classList.add('hidden');
+        }
+
+        const messages = await apiRequest(`/chats/${chat.id}/messages`);
+        const container = document.getElementById('message-container');
+        container.innerHTML = '';
+        messages.forEach(renderMessage);
+        scrollToBottom();
+        loadChatList(); // Refresh counts
+    }
+
+    function renderMessage(msg) {
+        const isMe = msg.sender_id === currentUser.id;
+        const container = document.getElementById('message-container');
+        const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+        
+        let content = msg.content;
+        if (msg.msg_type === 'image') {
+            content = `<img src="${msg.content}" class="max-w-64 rounded-lg shadow-sm">`;
+        }
+
+        wrapper.innerHTML = `
+            <div class="${isMe ? 'bg-blue-500 text-white msg-bubble-out' : 'bg-white text-slate-800 msg-bubble-in'} max-w-[80%] p-3 shadow-sm relative">
+                <div class="text-sm">${content}</div>
+                <div class="text-[9px] text-right mt-1 opacity-70">${time}</div>
+            </div>
+        `;
+        container.appendChild(wrapper);
+    }
+
+    function scrollToBottom() {
+        const c = document.getElementById('message-container');
+        c.scrollTop = c.scrollHeight;
+    }
+
+    async function openNewChat() {
+        const username = prompt("Enter username to chat with:");
+        if (!username) return;
+        const res = await apiRequest(`/chats/private/${username}`, 'POST');
+        if (res.chat_id) {
+            loadChatList();
+            selectChat({id: res.chat_id, name: username, avatar: '/uploads/default.png'});
+        } else {
+            alert("User not found");
+        }
+    }
+
+    function closeChatMobile() {
+        document.getElementById('sidebar').classList.remove('hidden');
+        document.getElementById('active-chat').classList.add('hidden');
+        document.getElementById('no-chat').classList.remove('hidden');
+        currentChatId = null;
+    }
+
+    function showTyping(user) {
+        const status = document.getElementById('chat-header-status');
+        const old = status.innerText;
+        status.innerText = `${user} is typing...`;
+        setTimeout(() => { status.innerText = old; }, 3000);
+    }
+
+    // --- EVENT LISTENERS ---
+    document.getElementById('msg-input').onkeydown = (e) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'typing', chat_id: currentChatId }));
+        }
+        if (e.key === 'Enter') document.getElementById('send-btn').click();
+    };
+
+    document.getElementById('send-btn').onclick = () => {
+        const input = document.getElementById('msg-input');
+        const content = input.value.trim();
+        if (!content || !currentChatId) return;
+        
+        ws.send(JSON.stringify({
+            type: 'msg',
+            chat_id: currentChatId,
+            content: content,
+            msg_type: 'text'
+        }));
+        input.value = '';
+    };
+
+    document.getElementById('btn-upload').onclick = () => document.getElementById('file-input').click();
+    document.getElementById('file-input').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await apiRequest('/upload', 'POST', formData, true);
+        if (res.url) {
+            ws.send(JSON.stringify({
+                type: 'msg',
+                chat_id: currentChatId,
+                content: res.url,
+                msg_type: 'image'
+            }));
+        }
+    };
+
+    window.onload = init;
+</script>
+</body>
+</html>
